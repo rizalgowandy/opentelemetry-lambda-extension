@@ -39,8 +39,8 @@ module "hello-lambda-function" {
 
 resource "aws_lambda_alias" "provisioned" {
   name             = "provisioned"
-  function_name    = module.hello-lambda-function.this_lambda_function_name
-  function_version = module.hello-lambda-function.this_lambda_function_version
+  function_name    = module.hello-lambda-function.lambda_function_name
+  function_version = module.hello-lambda-function.lambda_function_version
 }
 
 resource "aws_lambda_provisioned_concurrency_config" "lambda_api" {
@@ -56,4 +56,5 @@ module "api-gateway" {
   function_name       = aws_lambda_alias.provisioned.function_name
   function_qualifier  = aws_lambda_alias.provisioned.name
   function_invoke_arn = aws_lambda_alias.provisioned.invoke_arn
+  enable_xray_tracing = var.tracing_mode == "Active"
 }
