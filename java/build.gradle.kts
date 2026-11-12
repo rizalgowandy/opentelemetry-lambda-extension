@@ -8,14 +8,14 @@ allprojects {
     plugins.apply("com.diffplug.spotless")
 
     plugins.withId("java") {
-        configure<JavaPluginConvention> {
+        configure<JavaPluginExtension> {
             sourceCompatibility = JavaVersion.VERSION_1_8
             targetCompatibility = JavaVersion.VERSION_1_8
         }
 
         spotless {
             java {
-                googleJavaFormat("1.9")
+                googleJavaFormat()
             }
         }
 
@@ -23,7 +23,7 @@ allprojects {
             afterEvaluate {
                 configurations.configureEach {
                     if (!isCanBeResolved && !isCanBeConsumed) {
-                        add(name, enforcedPlatform(project(":dependencyManagement")))
+                        add(name, enforcedPlatform(this@dependencies.project(":dependencyManagement")))
                     }
                 }
             }

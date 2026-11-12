@@ -4,24 +4,41 @@ on:
   push:
     paths:
       - 'java/**'
+      - '.github/workflows/ci-java.yml'
     branches:
       - main
   pull_request:
     paths:
       - 'java/**'
+      - '.github/workflows/ci-java.yml'
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-java@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          java-version: 15
-      - uses: burrunan/gradle-cache-action@v1.10
+          persist-credentials: false
+
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
-          remote-build-cache-proxy-enabled: false
-          arguments: build --stacktrace
-          build-root-directory: java
+          distribution: corretto
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          add-job-summary-as-pr-comment: on-failure # Valid values are 'never' (default), 'always', and 'on-failure'
+          cache-provider: basic # MIT licensed (see https://github.com/gradle/actions/releases/tag/v6.1.0)
+
+      - name: Execute Gradle build
+        run: |
+          cd java
+          ./gradlew build --scan --stacktrace

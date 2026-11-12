@@ -1,9 +1,11 @@
 module "hello-lambda-function" {
-  source = "terraform-aws-modules/lambda/aws"
+  source  = "terraform-aws-modules/lambda/aws"
+  version = "8.13.0"
 
+  architectures = compact([var.architecture])
   function_name = var.name
   handler       = "io.opentelemetry.lambda.sampleapps.awssdk.AwsSdkRequestHandler::handleRequest"
-  runtime       = "java11"
+  runtime       = var.runtime
 
   create_package         = false
   local_existing_package = "${path.module}/../../build/libs/aws-sdk-all.jar"
@@ -40,6 +42,7 @@ module "api-gateway" {
   source = "../../../../../utils/terraform/api-gateway-proxy"
 
   name                = var.name
-  function_name       = module.hello-lambda-function.this_lambda_function_name
-  function_invoke_arn = module.hello-lambda-function.this_lambda_function_invoke_arn
+  function_name       = module.hello-lambda-function.lambda_function_name
+  function_invoke_arn = module.hello-lambda-function.lambda_function_invoke_arn
+  enable_xray_tracing = var.tracing_mode == "Active"
 }

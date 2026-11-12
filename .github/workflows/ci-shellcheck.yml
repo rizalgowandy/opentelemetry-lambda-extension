@@ -1,0 +1,27 @@
+name: "Continuous Build (shellcheck)"
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install shell check
+        run: sudo apt update && sudo apt install --assume-yes shellcheck
+
+      - name: Run shellcheck
+        run: >-
+          find . -type f |
+          grep -v '.git' |
+          xargs -n 30 file |
+          grep -i shell |
+          awk -F':' '{print $1}' |
+          xargs shellcheck
+

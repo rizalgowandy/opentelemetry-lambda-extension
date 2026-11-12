@@ -1,0 +1,82 @@
+name: "Continuous Build (Collector)"
+
+on:
+  push:
+    paths:
+      - 'collector/**'
+      - '.github/workflows/ci-collector.yml'
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'collector/**'
+      - '.github/workflows/ci-collector.yml'
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: collector/go.mod
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Tidy
+        run: make gotidy
+        working-directory: collector
+      - name: Run tests
+        run: make gotest
+        working-directory: collector
+      - name: Check for known vulnerabilities
+        run: make govulncheck
+        working-directory: collector
+  build:
+    runs-on: ubuntu-26.04
+    needs: [test]
+    strategy:
+      matrix:
+        architecture: [ amd64, arm64 ]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: collector/go.mod
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Build Collector Executable for ${{ matrix.architecture }} architecture
+        run: GOARCH=${{ matrix.architecture }} make package
+        working-directory: collector
+      - name: Get Lambda Layer amd64 architecture value
+        if: ${{ matrix.architecture == 'amd64' }}
+        run: echo LAMBDA_LAYER_ARCHITECTURE=x86 | tee --append $GITHUB_ENV
+      - name: Get Lambda Layer arm64 architecture value
+        if: ${{ matrix.architecture == 'arm64' }}
+        run: echo LAMBDA_LAYER_ARCHITECTURE=ARM | tee --append $GITHUB_ENV
+      - name: Confirm architecture of built collector
+        working-directory: collector/build/extensions
+        run: |
+          grep "${LAMBDA_LAYER_ARCHITECTURE}" <<< "$(file collector)"
+      - name: Output artifact size to job summary
+        working-directory: collector/build
+        run: |
+          echo "### Collector size (${{ matrix.architecture }})" >> $GITHUB_STEP_SUMMARY
+          echo "- Binary: $(du -h extensions/collector | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          echo "- Layer zip: $(du -h opentelemetry-collector-layer-*.zip | cut -f1)" >> $GITHUB_STEP_SUMMARY

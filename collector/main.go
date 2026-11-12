@@ -16,73 +16,43 @@ package main
 
 import (
 	"context"
-	"log"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"syscall"
+	"flag"
+	"fmt"
+	"time"
 
-	"github.com/open-telemetry/opentelemetry-lambda/collector/extension"
-	"github.com/open-telemetry/opentelemetry-lambda/collector/lambdacomponents"
+	"github.com/open-telemetry/opentelemetry-lambda/collector/lambdalifecycle"
+
+	"go.uber.org/zap"
+
+	"github.com/open-telemetry/opentelemetry-lambda/collector/internal/lifecycle"
+	"github.com/open-telemetry/opentelemetry-lambda/collector/internal/logging"
 )
 
 var (
-	extensionName   = filepath.Base(os.Args[0]) // extension name has to match the filename
-	extensionClient = extension.NewClient(os.Getenv("AWS_LAMBDA_RUNTIME_API"))
+	// Version variable will be replaced at link time after `make` has been run.
+	Version = "latest"
+
+	// GitHash variable will be replaced at link time after `make` has been run.
+	GitHash = "<NOT PROPERLY GENERATED>"
 )
 
 func main() {
-	logln("Launching OpenTelemetry Lambda extension, version: ", Version)
-
-	factories, _ := lambdacomponents.Components()
-	collector := NewCollector(factories)
-	if err := collector.Start(); err != nil {
-		log.Fatalf("Failed to start the extension: %v", err)
+	versionFlag := flag.Bool("v", false, "prints version information")
+	flag.Parse()
+	if *versionFlag {
+		fmt.Println(Version)
+		return
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	logger := logging.NewLogger()
+	startTime := time.Now()
+	logger.Info("Launching OpenTelemetry Lambda extension", zap.String("version", Version))
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT)
-	go func() {
-		s := <-sigs
-		cancel()
-		logln("Received", s)
-		logln("Exiting")
-	}()
+	ctx, lm := lifecycle.NewManager(context.Background(), logger, Version, startTime)
 
-	res, err := extensionClient.Register(ctx, extensionName)
-	if err != nil {
-		log.Fatalf("Cannot register extension: %v", err)
-	}
+	// Set the new lifecycle manager as the lifecycle notifier for all other components.
+	lambdalifecycle.SetNotifier(lm)
 
-	logln("Register response:", prettyPrint(res))
 	// Will block until shutdown event is received or cancelled via the context.
-	processEvents(ctx, collector)
-}
-
-func processEvents(ctx context.Context, collector *Collector) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			logln("Waiting for event...")
-			res, err := extensionClient.NextEvent(ctx)
-			if err != nil {
-				logln("Error:", err)
-				logln("Exiting")
-				return
-			}
-
-			logln("Received event:", prettyPrint(res))
-			// Exit if we receive a SHUTDOWN event
-			if res.EventType == extension.Shutdown {
-				collector.Stop() // TODO: handle return values
-				logln("Received SHUTDOWN event")
-				logln("Exiting")
-				return
-			}
-		}
-	}
+	logger.Info("done", zap.Error(lm.Run(ctx)))
 }

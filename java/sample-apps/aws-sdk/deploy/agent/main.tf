@@ -1,9 +1,11 @@
 module "hello-lambda-function" {
-  source = "terraform-aws-modules/lambda/aws"
+  source  = "terraform-aws-modules/lambda/aws"
+  version = "8.13.0"
 
+  architectures = compact([var.architecture])
   function_name = var.name
   handler       = "io.opentelemetry.lambda.sampleapps.awssdk.AwsSdkRequestHandler::handleRequest"
-  runtime       = "java11"
+  runtime       = var.runtime
 
   create_package         = false
   local_existing_package = "${path.module}/../../build/libs/aws-sdk-all.jar"
@@ -14,12 +16,20 @@ module "hello-lambda-function" {
 
   layers = compact([
     var.collector_layer_arn,
-    var.sdk_layer_arn
+    var.sdk_layer_arn,
+    var.collector_config_layer_arn,
   ])
 
-  environment_variables = {
-    AWS_LAMBDA_EXEC_WRAPPER = "/opt/otel-handler"
-  }
+  environment_variables = (var.collector_config_layer_arn == null ?
+    {
+      AWS_LAMBDA_EXEC_WRAPPER = "/opt/otel-handler",
+      OTEL_METRICS_EXPORTER   = "otlp",
+    } :
+    {
+      AWS_LAMBDA_EXEC_WRAPPER            = "/opt/otel-handler",
+      OTEL_METRICS_EXPORTER              = "otlp",
+      OPENTELEMETRY_COLLECTOR_CONFIG_URI = "/opt/config.yaml"
+  })
 
   tracing_mode = var.tracing_mode
 
@@ -39,8 +49,8 @@ module "hello-lambda-function" {
 
 resource "aws_lambda_alias" "provisioned" {
   name             = "provisioned"
-  function_name    = module.hello-lambda-function.this_lambda_function_name
-  function_version = module.hello-lambda-function.this_lambda_function_version
+  function_name    = module.hello-lambda-function.lambda_function_name
+  function_version = module.hello-lambda-function.lambda_function_version
 }
 
 resource "aws_lambda_provisioned_concurrency_config" "lambda_api" {
@@ -56,4 +66,5 @@ module "api-gateway" {
   function_name       = aws_lambda_alias.provisioned.function_name
   function_qualifier  = aws_lambda_alias.provisioned.name
   function_invoke_arn = aws_lambda_alias.provisioned.invoke_arn
+  enable_xray_tracing = var.tracing_mode == "Active"
 }

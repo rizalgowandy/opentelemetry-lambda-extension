@@ -1,9 +1,10 @@
 plugins {
     java
-    id("com.github.johnrengelman.shadow")
+    id("com.gradleup.shadow")
 }
 
 dependencies {
+    implementation("io.opentelemetry:opentelemetry-api")
     implementation("com.amazonaws:aws-lambda-java-core")
     implementation("com.amazonaws:aws-lambda-java-events")
     implementation("org.apache.logging.log4j:log4j-core")

@@ -1,0 +1,25 @@
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directories:
+      - "/collector"
+      - "/collector/internal/tools"
+      - "/collector/lambdacomponents"
+      - "/collector/lambdalifecycle"
+      - "/collector/processor/coldstartprocessor"
+      - "/collector/processor/decoupleprocessor"
+      - "/collector/receiver/telemetryapireceiver"
+      - "/go/sample-apps/function"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      opentelemetry-deps-collector:
+        patterns:
+          - "*opentelemetry*"
+      collector-other:
+        patterns:
+          - "*"

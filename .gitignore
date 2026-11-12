@@ -7,3 +7,20 @@ build
 
 .terraform*
 terraform.*
+
+.vscode/
+
+.DS_Store
+
+.tox
+__pycache__/*
+.pyc
+build.toml
+
+*.zip
+
+collector/VERSION
+
+# Integration tests
+integration-tests/cdk.out/
+integration-tests/node_modules/

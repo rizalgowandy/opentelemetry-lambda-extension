@@ -9,17 +9,18 @@ plugins {
 data class DependencySet(val group: String, val version: String, val modules: List<String>)
 
 val DEPENDENCY_BOMS = listOf(
-    "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:1.0.1-alpha",
-    "io.grpc:grpc-bom:1.37.0",
-    "org.apache.logging.log4j:log4j-bom:2.14.0",
-    "software.amazon.awssdk:bom:2.15.67"
+    "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:2.33.1-alpha",
+    "org.apache.logging.log4j:log4j-bom:2.26.1",
+    "software.amazon.awssdk:bom:2.58.0"
 )
 
 val DEPENDENCIES = listOf(
-    "com.amazonaws:aws-lambda-java-core:1.2.1",
-    "com.amazonaws:aws-lambda-java-events:3.7.0",
-    "com.squareup.okhttp3:okhttp:4.9.0",
-    "io.opentelemetry.javaagent:opentelemetry-javaagent:1.0.1"
+    "com.amazonaws:aws-lambda-java-core:1.4.1",
+    "com.amazonaws:aws-lambda-java-events:3.16.1",
+    "com.squareup.okhttp3:okhttp:5.5.1",
+    "io.opentelemetry.javaagent:opentelemetry-javaagent:2.33.1",
+    "io.opentelemetry:opentelemetry-sdk-extension-aws:1.19.0",
+    "io.opentelemetry.contrib:opentelemetry-aws-resources:1.62.1-alpha",
 )
 
 javaPlatform {
@@ -38,7 +39,7 @@ dependencies {
 }
 
 fun isNonStable(version: String): Boolean {
-    val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.toUpperCase().contains(it) }
+    val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.uppercase().contains(it) }
     val regex = "^[0-9,.v-]+(-r)?$".toRegex()
     val isGuava = version.endsWith("-jre")
     val isStable = stableKeyword || regex.matches(version) || isGuava
